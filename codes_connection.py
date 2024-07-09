@@ -1,5 +1,6 @@
 import sys
 
+import threading
 import PySide6
 from PySide6 import QtWidgets, QtGui
 from PySide6.QtWidgets import QApplication, QMainWindow
@@ -23,6 +24,7 @@ class Slave(QMainWindow):
         self.port = None
         self.counter = 0
         self.dict = {}
+        self.revizor_dict = {}
         self.ui.tableWidget_zapis.setColumnCount(3)
 
         self.ui.pushButton_add.clicked.connect(self.open_new_value)
@@ -30,35 +32,67 @@ class Slave(QMainWindow):
         if self.bruh != None:
             self.ui.pushButton_disconnect.clicked.connect(self.disc)
 
+    def revizor_vivod(self):
+        while True:
+            print(self.revizor_dict)
+            for i,v in self.revizor_dict.items():
+                adress = int(v[1])
+                tip = v[3]
+                if tip == "int16":
+                    r = self.bruh.read_16int(adress)
+                elif tip == "dint32":
+                    r = self.bruh.read_dint(adress)
+                elif tip == "int64":
+                    r = self.bruh.read_64int(adress)
+                elif tip == "udint32":
+                    r = self.bruh.read_udint(adress)
+                elif tip == "float32":
+                    r = self.bruh.read_float(adress)
+                elif tip == "double64":
+                    r = self.bruh.read_double(adress)
+                elif tip == "uint16":
+                    r = self.bruh.read_uint(adress)
+                elif tip == "uint64":
+                    r = self.bruh.read_64uint(adress)
+                print(self.revizor_dict[str(adress)+tip])
+                self.revizor_dict[str(adress)+tip] = [self.revizor_dict[str(adress)+tip][0], adress, r, tip]
+                self.ui.tableWidget_2.item(int(v[0]), 1).setText(str(v[2]))
+
+    def potok(self, a):
+        for i in range(3):
+            b = PySide6.QtWidgets.QTableWidgetItem(str(a[i+1]))
+            self.ui.tableWidget_2.setItem(self.counter - 1, i, b)
+        t1 = threading.Thread(target=self.revizor_vivod, args=(), daemon=True)
+        t1.start()
+        # t1.join()
     def vivod(self):
-        print(self.dict)
         adress = int(self.new_value.lineEdit_index_1488.text())
         tip = self.new_value.comboBox.currentText()
+        if adress in self.dict:
+            if tip == "int16":
+                r = self.bruh.read_16int(adress)
+            elif tip == "dint32":
+                r = self.bruh.read_dint(adress)
+            elif tip == "int64":
+                r = self.bruh.read_64int(adress)
+            elif tip == "udint32":
+                r = self.bruh.read_udint(adress)
+            elif tip == "float32":
+                r = self.bruh.read_float(adress)
+            elif tip == "double64":
+                r = self.bruh.read_double(adress)
+            elif tip == "uint16":
+                r = self.bruh.read_uint(adress)
+            elif tip == "uint64":
+                r = self.bruh.read_64uint(adress)
+            super_id = str(adress)+str(tip)
+            if super_id not in self.revizor_dict:
+                self.revizor_dict[super_id] = [self.counter, adress, r, tip]
+                self.counter+=1
+                self.ui.tableWidget_2.setRowCount(self.counter)
+                self.potok(self.revizor_dict[super_id])
+                self.new_window1.close()
 
-        adress = int(adress)
-        if tip == "int16":
-            r = self.bruh.read_16int(adress)
-        elif tip == "dint32":
-            r = self.bruh.read_dint(adress)
-        elif tip == "int64":
-            r = self.bruh.read_64int(adress)
-        elif tip == "udint32":
-            r = self.bruh.read_udint(adress)
-        elif tip == "float32":
-            r = self.bruh.read_float(adress)
-        elif tip == "double64":
-            r = self.bruh.read_double(adress)
-        elif tip == "uint16":
-            r = self.bruh.read_uint(adress)
-        elif tip == "uint64":
-            r = self.bruh.read_64uint(adress)
-        a = [str(adress), r, tip]
-        self.counter+=1
-        self.ui.tableWidget_2.setRowCount(self.counter)
-        for i in range(3):
-            b = PySide6.QtWidgets.QTableWidgetItem(str(a[i]))
-            self.ui.tableWidget_2.setItem(self.counter - 1, i, b)
-        self.new_window1.close()
 
     def connec(self):
         self.new_window = QtWidgets.QDialog()
@@ -130,14 +164,16 @@ class Slave(QMainWindow):
         a = [index, vaalue, data]
         self.dict[index] = [vaalue, data]
         self.ui.tableWidget_zapis.setRowCount(len(self.dict))
+        print(self.dict)
         for i in range(3):
             b = PySide6.QtWidgets.QTableWidgetItem(str(a[i]))
             self.ui.tableWidget_zapis.setItem(len(self.dict)-1, i, b)
         self.new_window1.close()
-
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     window = Slave()
     window.show()
     sys.exit(app.exec())
+
+
